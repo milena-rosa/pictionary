@@ -2,7 +2,7 @@
 
 A real-time, multiplayer Pictionary game built with **React**, **TypeScript**, **Tailwind CSS** (frontend), and **FastAPI** (backend). Draw, guess, and compete with friends in your browser!
 
-![pictionary screen](https://github.com/milena-rosa/pictionary/blob/main/image.png)
+![pictionary screen](https://github.com/milena-rosa/pictionary/blob/main/image.jpeg)
 
 ---
 
