@@ -1,47 +1,55 @@
+// Chat.tsx
 import React, { useState, useEffect, useRef } from "react";
 import { sendMessage } from "../api/websocket";
-import type { ChatMessage } from "../types/game"; // Import ChatMessage type
+import type { ChatMessage } from "../types/game";
 
 interface ChatProps {
   ws: WebSocket | null;
   playerName: string;
-  messages: ChatMessage[]; // Now receives messages as a prop
+  messages: ChatMessage[];
 }
 
 const Chat: React.FC<ChatProps> = ({ ws, messages }) => {
   const [input, setInput] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null); // Ref for auto-scrolling
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
-    scrollToBottom(); // Scroll to bottom when messages change
+    scrollToBottom();
   }, [messages]);
 
   const send = (e: React.FormEvent) => {
     e.preventDefault();
     if (ws && input.trim()) {
-      sendMessage(ws, "GUESS", { message: input.trim() }); // Send 'GUESS' message type
+      sendMessage(ws, "GUESS", { message: input.trim() });
       setInput("");
     }
   };
 
   return (
-    <div className="flex flex-col flex-1 p-4 bg-gray-50 border-t border-gray-200">
-      <h3 className="text-lg font-semibold mb-2">Chat</h3>
+    <div className="flex flex-col flex-1 p-4 bg-white">
+      <h3 className="text-lg font-bold mb-3 text-gray-800 border-b pb-2">
+        💬 Game Chat
+      </h3>
       <div
-        className="flex-1 overflow-y-auto bg-white rounded p-2 mb-2 shadow-inner border border-gray-200"
-        style={{ minHeight: "150px" }}
+        className="flex-1 overflow-y-auto bg-gray-50 rounded-lg p-3 mb-3 shadow-inner border border-gray-200"
+        style={{ minHeight: "120px" }}
       >
         {messages.map((m, i) => (
-          <div key={`${m}-${i}`} className="text-sm my-1">
-            <span className="font-bold mr-1">{m.sender}:</span>
+          <div
+            key={`${m.message}-${i}`}
+            className="text-sm my-1 leading-relaxed"
+          >
+            <span className="font-semibold text-gray-700 mr-1">
+              {m.sender}:
+            </span>
             <span
               className={
                 m.isCorrectGuess
-                  ? "text-green-600 font-medium"
+                  ? "text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-md"
                   : "text-gray-800"
               }
             >
@@ -49,18 +57,19 @@ const Chat: React.FC<ChatProps> = ({ ws, messages }) => {
             </span>
           </div>
         ))}
-        <div ref={messagesEndRef} /> {/* Dummy div for scrolling */}
+        <div ref={messagesEndRef} />
       </div>
       <form onSubmit={send} className="flex">
         <input
-          className="flex-1 border rounded-l p-2 focus:ring-blue-500 focus:border-blue-500"
+          className="flex-1 border border-gray-300 rounded-l-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all duration-200 placeholder-gray-500"
           placeholder="Type your guess or message..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          disabled={!ws} // Disable if WS not connected
+          disabled={!ws}
+          aria-label="Chat input"
         />
         <button
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-r transition-colors duration-200"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-r-lg font-semibold transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md cursor-pointer"
           type="submit"
           disabled={!ws || !input.trim()}
         >

@@ -1,3 +1,4 @@
+// GamePage.tsx
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useGameState } from "../contexts/GameStateContext";
 import {
@@ -12,7 +13,7 @@ import WordSelectionModal from "../components/WordSelectionModal";
 import type { ChatMessage, DrawingData } from "../types/game";
 
 interface Props {
-  roomId: string; // This is the ID of the room we're in, passed from App.tsx
+  roomId: string;
   playerId: string;
   playerName: string;
 }
@@ -22,9 +23,9 @@ const GamePage: React.FC<Props> = ({ roomId, playerId, playerName }) => {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [copyStatus, setCopyStatus] = useState<string>("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [drawingHistory, setDrawingHistory] = useState<DrawingData[][]>([]); // Full drawing history
+  const [drawingHistory, setDrawingHistory] = useState<DrawingData[][]>([]);
   const [currentRemoteDrawingPoint, setCurrentRemoteDrawingPoint] =
-    useState<DrawingData | null>(null); // For real-time point updates
+    useState<DrawingData | null>(null);
   const [wordsToChoose, setWordsToChoose] = useState<string[]>([]);
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const timerIntervalRef = useRef<number | null>(null);
@@ -41,18 +42,16 @@ const GamePage: React.FC<Props> = ({ roomId, playerId, playerName }) => {
       switch (msg.type) {
         case "GAME_STATE_UPDATE":
           setGameState(msg.payload);
-          // Ensure drawing strokes from full state update are applied
           setDrawingHistory(msg.payload.drawing_strokes || []);
-          setCurrentRemoteDrawingPoint(null); // Clear single point as full history is provided
+          setCurrentRemoteDrawingPoint(null);
 
-          // Handle client-side timer
           if (msg.payload.timer_expires_at) {
             const expiresAt = msg.payload.timer_expires_at;
             if (timerIntervalRef.current) {
               clearInterval(timerIntervalRef.current);
             }
             timerIntervalRef.current = window.setInterval(() => {
-              const now = Date.now() / 1000; // Current time in seconds
+              const now = Date.now() / 1000;
               const remaining = Math.max(0, Math.floor(expiresAt - now));
               setTimeLeft(remaining);
               if (remaining === 0 && timerIntervalRef.current) {
@@ -74,23 +73,20 @@ const GamePage: React.FC<Props> = ({ roomId, playerId, playerName }) => {
             {
               sender: msg.payload.sender,
               message: msg.payload.message,
-              // in the backend, Pydantic does the conversion from snake_case to camelCase by default in model_dump().
               isCorrectGuess: msg.payload.isCorrectGuess || false,
             },
           ]);
           break;
         case "DRAWING_UPDATE":
-          // This is a single point update for real-time drawing, not full history
           setCurrentRemoteDrawingPoint(msg.payload);
           break;
         case "WORD_TO_DRAW":
-          // This message is only sent to the current drawer with word options
           if (playerId === msg.payload.current_drawer_id) {
             setWordsToChoose(msg.payload.words);
           }
           break;
         case "GAME_OVER":
-          setGameState(msg.payload); // Update game state one last time for scores etc.
+          setGameState(msg.payload);
           setChatMessages((prev) => [
             ...prev,
             {
@@ -101,7 +97,6 @@ const GamePage: React.FC<Props> = ({ roomId, playerId, playerName }) => {
               isCorrectGuess: true,
             },
           ]);
-          // Potentially show a dedicated game over modal/screen here (not implemented in this snippet)
           break;
         case "ERROR":
           console.error("WS Error:", msg.payload.message);
@@ -121,17 +116,14 @@ const GamePage: React.FC<Props> = ({ roomId, playerId, playerName }) => {
     [playerId, setGameState]
   );
 
-  // Effect for WebSocket connection
   useEffect(() => {
     const websocket = connectWebSocket(
       roomId,
       playerId,
       playerName,
-      handleWebSocketMessage, // Pass the handler
+      handleWebSocketMessage,
       () => {
-        // OnClose handler
-        setWs(null); // Clear WS state to indicate disconnection
-        // Implement reconnection logic here if desired (e.g., display error, go back to home)
+        setWs(null);
         setChatMessages((prev) => [
           ...prev,
           {
@@ -150,10 +142,8 @@ const GamePage: React.FC<Props> = ({ roomId, playerId, playerName }) => {
         clearInterval(timerIntervalRef.current);
       }
     };
-    // Add handleWebSocketMessage to dependencies since it's a useCallback, ensures it's fresh
   }, [roomId, playerId, playerName, handleWebSocketMessage]);
 
-  // Host actions
   const handleStartGame = () => {
     if (ws) {
       sendMessage(ws, "START_GAME", {});
@@ -164,7 +154,7 @@ const GamePage: React.FC<Props> = ({ roomId, playerId, playerName }) => {
     if (ws) {
       sendMessage(ws, "CHOOSE_WORD", { word });
     }
-    setWordsToChoose([]); // Clear modal after selection
+    setWordsToChoose([]);
   };
 
   const handleCopyRoomId = async () => {
@@ -181,8 +171,8 @@ const GamePage: React.FC<Props> = ({ roomId, playerId, playerName }) => {
 
   if (!gameState) {
     return (
-      <div className="flex justify-center items-center h-screen bg-gray-100">
-        <span className="text-xl text-gray-700">Connecting to game...</span>
+      <div className="flex justify-center items-center h-screen bg-gray-100 text-gray-700">
+        <p className="text-xl">Connecting to game...</p>
       </div>
     );
   }
@@ -194,7 +184,7 @@ const GamePage: React.FC<Props> = ({ roomId, playerId, playerName }) => {
     !!gameState.current_drawer_id;
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
+    <div className="flex flex-col md:flex-row min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-sans text-gray-800">
       {wordsToChoose.length > 0 && (
         <WordSelectionModal
           words={wordsToChoose}
@@ -202,109 +192,137 @@ const GamePage: React.FC<Props> = ({ roomId, playerId, playerName }) => {
         />
       )}
 
-      <main className="flex-1 flex flex-col items-center p-4">
+      <main className="flex-1 flex flex-col items-center p-4 md:p-6">
         {/* Room ID and Share Info */}
-        <div className="text-center bg-blue-50 p-4 rounded-lg shadow-md mb-6 w-full max-w-md">
-          <h2 className="text-xl font-semibold text-blue-800 mb-2">
-            Share Room ID
+        <div className="relative text-center bg-white p-5 rounded-2xl shadow-xl mb-6 w-full max-w-lg border border-gray-100">
+          <h2 className="text-xl font-bold text-gray-800 mb-2">
+            Invite Your Friends!
           </h2>
-          <div className="flex items-center justify-center space-x-2">
-            <span className="text-4xl font-extrabold text-blue-600 tracking-wider">
-              {roomId} {/* This prop is the one passed from App.tsx */}
-            </span>
+          <p className="text-gray-600 mb-3 text-sm">
+            Share this Room ID with your friends to join the game:
+          </p>
+          <div className="flex items-center justify-center space-x-2 bg-gray-50 border border-gray-200 rounded-xl p-2 text-xl md:text-2xl font-extrabold text-indigo-700 tracking-wide select-text">
+            <span className="truncate">{roomId}</span>
             <button
               onClick={handleCopyRoomId}
-              className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors duration-200"
+              className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all duration-300 transform hover:scale-105 shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 cursor-pointer"
               title="Copy to clipboard"
+              aria-label="Copy Room ID to clipboard"
             >
-              📋
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m-7 4H9m2 0h2m-2 4h2m-2 4h2m-2 4h2"
+                ></path>
+              </svg>
             </button>
           </div>
           {copyStatus && (
             <p
-              className={`mt-2 text-sm ${
+              className={`mt-2 text-sm font-medium ${
                 copyStatus === "Copied!" ? "text-green-600" : "text-red-600"
               }`}
             >
               {copyStatus}
             </p>
           )}
-          <p className="text-gray-700 mt-2">
-            Give this to your friends so they can join!
-          </p>
         </div>
+
         {/* Host Controls */}
         {isHost && !gameState.is_game_started && (
           <button
             onClick={handleStartGame}
-            className="mb-4 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-colors duration-200 text-xl"
-            disabled={Object.keys(gameState.players).length < 2 || !ws} // Needs at least 2 players to start
+            className={`mb-6 bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-6 rounded-full text-lg shadow-lg transition-all duration-300 transform ${
+              Object.keys(gameState.players).length < 2
+                ? "opacity-60 cursor-not-allowed"
+                : "hover:scale-105 cursor-pointer"
+            } focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50`}
+            disabled={Object.keys(gameState.players).length < 2 || !ws}
           >
             {Object.keys(gameState.players).length < 2
               ? "Need 2+ players to start"
               : "Start Game"}
           </button>
         )}
+
         {/* Game State Info */}
-        <h3 className="my-4 text-2xl font-bold text-gray-800">
-          Round {gameState.round_number} / {gameState.total_rounds}
-        </h3>
-        {gameState.is_game_started && (
-          <div className="mb-4 text-xl">
-            {gameStateRef.current?.current_drawer_id === playerId ? (
-              <p className="font-bold text-green-700">You are drawing!</p>
-            ) : (
-              <p>
-                <span className="font-bold text-gray-700">Guess the word:</span>{" "}
-                <span className="font-mono text-purple-700 text-2xl">
-                  {gameState.guessed_word_hint || "Wait for hint..."}
-                </span>
-              </p>
-            )}
-            {gameState.secret_word &&
-              gameStateRef.current?.current_drawer_id === playerId && (
-                <p className="text-xl font-bold text-indigo-700 mt-2">
-                  Your word is: {gameState.secret_word}
+        <div className="bg-white p-5 rounded-2xl shadow-xl mb-6 w-full max-w-lg border border-gray-100">
+          <h3 className="text-2xl font-bold text-gray-800 mb-3">
+            Round {gameState.round_number} / {gameState.total_rounds}
+          </h3>
+          {gameState.is_game_started && (
+            <div className="text-base">
+              {gameStateRef.current?.current_drawer_id === playerId ? (
+                <p className="font-bold text-green-700 mb-1">
+                  You are drawing!
+                </p>
+              ) : (
+                <p>
+                  <span className="font-bold text-gray-700">
+                    Guess the word:
+                  </span>{" "}
+                  <span className="font-mono text-indigo-700 text-2xl block mt-1">
+                    {gameState.guessed_word_hint || "Waiting for hint..."}
+                  </span>
                 </p>
               )}
-          </div>
-        )}
-        {!gameState.is_game_started && (
-          <p className="text-xl text-gray-600 mb-4">
-            Waiting for host to start the game...
-          </p>
-        )}
+              {gameState.secret_word &&
+                gameStateRef.current?.current_drawer_id === playerId && (
+                  <p className="text-xl font-bold text-indigo-700 mt-3">
+                    Your word is:{" "}
+                    <span className="underline">{gameState.secret_word}</span>
+                  </p>
+                )}
+            </div>
+          )}
+          {!gameState.is_game_started && (
+            <p className="text-base text-gray-600 mb-3">
+              Waiting for host to start the game...
+            </p>
+          )}
+        </div>
+
         {/* Drawing Canvas */}
         <DrawingCanvas
           isDrawer={
             gameStateRef.current?.current_drawer_id === playerId &&
             isDrawingPhaseActive
-          } // Can only draw if it's your turn AND game is active
+          }
           ws={ws}
           remoteDrawingStrokes={drawingHistory}
           currentDrawingData={currentRemoteDrawingPoint}
         />
 
+        {/* Timer */}
         {gameState.current_drawer_id && (
-          <div className="mt-4 text-3xl font-bold text-red-600">
-            Timer: <span className="font-mono">{timeLeft}s</span>
+          <div className="mt-4 text-3xl font-extrabold text-indigo-700 bg-white p-3 rounded-xl shadow-md border border-gray-100 min-w-[150px] text-center">
+            Time Left:{" "}
+            <span className="font-mono text-red-600">{timeLeft}s</span>
           </div>
         )}
         {!gameState.current_drawer_id &&
           gameState.is_game_started &&
           gameState.round_number > 0 && (
-            <p className="mt-4 text-xl text-orange-600 font-semibold">
+            <p className="mt-4 text-base text-orange-600 font-semibold bg-white p-3 rounded-xl shadow-md border border-gray-100">
               Waiting for next drawer to pick a word...
             </p>
           )}
       </main>
-      <aside className="w-full md:w-80 border-l bg-white flex flex-col shadow-lg">
+      <aside className="w-full md:w-80 lg:w-96 border-l border-gray-200 bg-white flex flex-col shadow-2xl p-4">
         {gameState.players && (
           <Scoreboard
             players={Object.values(gameState.players)}
             current_drawer_id={gameState.current_drawer_id}
           />
-        )}{" "}
+        )}
         <Chat ws={ws} playerName={playerName} messages={chatMessages} />
       </aside>
     </div>

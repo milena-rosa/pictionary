@@ -1,12 +1,13 @@
+// DrawingCanvas.tsx
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { sendMessage } from "../api/websocket";
-import type { DrawingData } from "../types/game"; // Import DrawingData type
+import type { DrawingData } from "../types/game";
 
 interface DrawingCanvasProps {
   isDrawer: boolean;
   ws: WebSocket | null;
-  remoteDrawingStrokes: DrawingData[][]; // Prop to receive all drawing history
-  currentDrawingData: DrawingData | null; // Prop to receive real-time drawing point
+  remoteDrawingStrokes: DrawingData[][];
+  currentDrawingData: DrawingData | null;
 }
 
 const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
@@ -16,12 +17,12 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   currentDrawingData,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const colorInputRef = useRef<HTMLInputElement>(null); // Ref for the hidden color input
   const [drawing, setDrawing] = useState(false);
   const [color, setColor] = useState("#222");
   const [size, setSize] = useState(4);
-  const lastPoint = useRef<{ x: number; y: number } | null>(null); // To track last point for smooth drawing
+  const lastPoint = useRef<{ x: number; y: number } | null>(null);
 
-  // Function to draw a single segment
   const drawSegment = useCallback(
     (
       ctx: CanvasRenderingContext2D,
@@ -46,7 +47,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     []
   );
 
-  // Redraw the entire canvas from drawing history
   const redrawAll = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) {
@@ -57,7 +57,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       return;
     }
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear before redrawing
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     remoteDrawingStrokes.forEach((stroke) => {
       if (stroke.length > 0) {
@@ -65,7 +65,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         stroke.forEach((data) => {
           if (data.action === "start") {
             prevPoint = { x: data.x, y: data.y };
-            drawSegment(ctx, data, null); // For the start of a new stroke
+            drawSegment(ctx, data, null);
           } else if (data.action === "draw" && prevPoint) {
             drawSegment(ctx, data, prevPoint);
             prevPoint = { x: data.x, y: data.y };
@@ -75,15 +75,12 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     });
   }, [remoteDrawingStrokes, drawSegment]);
 
-  // Effect to draw remote strokes when they arrive
   useEffect(() => {
-    redrawAll(); // Redraw everything when history changes (e.g., new player joins, or full state update)
+    redrawAll();
   }, [remoteDrawingStrokes, redrawAll]);
 
-  // Effect to draw single real-time remote points
   useEffect(() => {
     if (currentDrawingData && !isDrawer) {
-      // Only draw if not the current drawer and data exists
       const canvas = canvasRef.current;
       if (!canvas) {
         return;
@@ -111,7 +108,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     }
   }, [currentDrawingData, isDrawer, drawSegment]);
 
-  // Handle local drawing (for the drawer)
   const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) {
@@ -168,18 +164,16 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       return;
     }
     setDrawing(false);
-    lastPoint.current = null; // Reset last point
-    sendDrawingData({ x: 0, y: 0, color, brush_size: size, action: "end" }); // x, y, color, size are placeholders
+    lastPoint.current = null;
+    sendDrawingData({ x: 0, y: 0, color, brush_size: size, action: "end" });
   };
 
-  // Helper for sending drawing messages
   const sendDrawingData = (data: DrawingData) => {
     if (ws) {
       sendMessage(ws, "DRAWING_DATA", data);
     }
   };
 
-  // Clear canvas
   const clearCanvas = () => {
     const canvas = canvasRef.current;
     if (canvas) {
@@ -192,61 +186,76 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   };
 
   return (
-    <div className="my-4 bg-white border border-gray-300 rounded-lg flex flex-col items-center shadow-lg p-2">
+    <div className="my-4 bg-white border border-gray-200 rounded-2xl flex flex-col items-center shadow-xl p-4 w-full max-w-xl lg:max-w-2xl">
       <canvas
         ref={canvasRef}
-        width={600} // Increased size for better drawing
-        height={450} // Increased size
-        className="border border-gray-400 rounded"
+        width={600}
+        height={450}
+        className="border-2 border-gray-300 rounded-xl bg-white cursor-crosshair shadow-inner"
         style={{
-          background: "#fff",
           cursor: isDrawer && ws ? "crosshair" : "not-allowed",
         }}
         onMouseDown={isDrawer ? startDraw : undefined}
         onMouseUp={isDrawer ? endDraw : undefined}
         onMouseLeave={isDrawer ? endDraw : undefined}
         onMouseMove={isDrawer ? draw : undefined}
-        onTouchStart={isDrawer ? startDraw : undefined} // Add touch events for mobile
+        onTouchStart={isDrawer ? startDraw : undefined}
         onTouchEnd={isDrawer ? endDraw : undefined}
         onTouchCancel={isDrawer ? endDraw : undefined}
         onTouchMove={isDrawer ? draw : undefined}
       />
-      {isDrawer &&
-        ws && ( // Only show controls if current player is drawer AND WebSocket is connected
-          <div className="flex flex-wrap items-center justify-center space-x-2 space-y-2 mt-3 p-2 bg-gray-100 rounded-lg shadow-inner">
-            <label className="flex items-center space-x-1">
-              <span className="text-gray-700 font-medium">Color:</span>
+      {isDrawer && ws && (
+        <div className="flex flex-wrap items-center justify-center gap-4 mt-4 p-3 bg-gray-50 rounded-xl shadow-inner border border-gray-100">
+          {/* Color Picker */}
+          <label className="flex flex-col items-center space-y-1">
+            <span className="text-gray-700 font-semibold text-sm">Color:</span>
+            <div
+              className="w-10 h-10 rounded-full border-2 border-gray-300 shadow-md cursor-pointer relative"
+              style={{ backgroundColor: color }}
+              onClick={() => colorInputRef.current?.click()} // Trigger hidden input click
+            >
               <input
                 type="color"
+                ref={colorInputRef}
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
-                className="w-10 h-10 border border-gray-300 rounded-md cursor-pointer"
+                className="absolute inset-0 opacity-0 cursor-pointer" // Hidden but clickable
+                aria-label="Select brush color"
               />
-            </label>
-            <label className="flex items-center space-x-2">
-              <span className="text-gray-700 font-medium">Size:</span>
-              <input
-                type="range"
-                min={2}
-                max={24}
-                value={size}
-                onChange={(e) => setSize(Number(e.target.value))}
-                className="w-24 h-4 bg-gray-300 rounded-lg appearance-none cursor-pointer range-lg"
-              />
-              <span className="text-gray-700 text-sm font-semibold">
-                {size}px
-              </span>
-            </label>
-            <button
-              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md transition-colors duration-200 shadow"
-              onClick={clearCanvas}
-            >
-              Clear
-            </button>
-          </div>
-        )}
+            </div>
+          </label>
+          {/* Size Picker */}
+          <label className="flex flex-col items-center space-y-1">
+            <span className="text-gray-700 font-semibold text-sm">
+              Brush Size:
+            </span>
+            <input
+              type="range"
+              min={2}
+              max={24}
+              value={size}
+              onChange={(e) => setSize(Number(e.target.value))}
+              className="w-28 h-2 bg-indigo-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-indigo-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-indigo-600 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-md"
+              aria-label="Select brush size"
+            />
+            <span className="text-gray-700 text-xs font-semibold">
+              {size}px
+            </span>
+          </label>
+          {/* Clear Button */}
+          <button
+            className="bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors duration-200 shadow-md transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 cursor-pointer"
+            onClick={clearCanvas}
+          >
+            Clear Drawing
+          </button>
+        </div>
+      )}
       {!ws && isDrawer && (
-        <p className="mt-2 text-sm text-red-500">
+        <p className="mt-3 text-sm text-red-500 font-medium bg-red-50 p-2.5 rounded-lg border border-red-200">
+          <span role="img" aria-label="warning">
+            ⚠️
+          </span>{" "}
           Not connected to game server. Drawing is disabled.
         </p>
       )}
