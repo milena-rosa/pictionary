@@ -2,3 +2,4 @@ pydantic
 uvicorn[standard]
 fastapi
 websockets
+python-dotenv

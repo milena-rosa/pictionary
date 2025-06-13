@@ -38,7 +38,44 @@ cd pictionary
 
 ---
 
-### 2. Install Backend Dependencies
+### 2. Environment Variables
+
+To configure environment variables for this project, follow these steps:
+
+1. **Locate the `.env.example` file(s):**  
+   Each `.env.example` file contains a list of required environment variables and example values. There is one in each of the `backend/` and `frontend/` folders.
+
+2. **Create your own `.env` file(s):**  
+   Copy the `.env.example` file and rename the copy to `.env` in the same directory. For example:
+
+   ```sh
+   cp backend/.env.example backend/.env
+   cp frontend/.env.example frontend/.env
+   ```
+
+3. **Update the `.env` file(s):**  
+   Open the newly created `.env` file(s) and update the values as needed for your local setup (e.g., API keys, ports, URLs, etc.).
+
+   - **backend/.env**
+     ```dotenv
+     LOCALHOST=localhost
+     PORT=8000
+     FRONTEND_BUILD_DIR="../frontend/dist"
+     FRONTEND_STATIC_DIR="assets"
+     ```
+   - **frontend/.env**
+     ```dotenv
+     VITE_WS_URL=ws://localhost:8000/ws
+     ```
+
+4. **Keep your `.env` files private:**  
+   Do not commit `.env` files to version control. They may contain sensitive information.
+
+> **Tip:** If new variables are added to `.env.example` in the future, repeat the steps above to update your `.env` file accordingly.
+
+---
+
+### 3. Install Backend Dependencies
 
 ```sh
 cd backend
@@ -49,7 +86,7 @@ pip install -r requirements.txt
 
 ---
 
-### 3. Install Frontend Dependencies
+### 4. Install Frontend Dependencies
 
 ```sh
 cd ../frontend
@@ -58,7 +95,7 @@ npm install
 
 ---
 
-### 4. Build the Frontend
+### 5. Build the Frontend
 
 ```sh
 npm run build
@@ -68,18 +105,18 @@ This will generate the production-ready frontend in `frontend/dist/`.
 
 ---
 
-### 5. Run the Backend Server
+### 6. Run the Backend Server
 
 ```sh
 cd ../backend
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+python3 main.py
 ```
 
 - The backend will serve the frontend static files and provide the API and WebSocket endpoints.
 
 ---
 
-### 6. Open the Game
+### 7. Open the Game
 
 Visit [http://localhost:8000](http://localhost:8000) in your browser.
 

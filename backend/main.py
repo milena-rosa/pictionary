@@ -1,14 +1,20 @@
 import json
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file
+
 from fastapi import (
     FastAPI,
-    WebSocket,
-    WebSocketDisconnect,
     HTTPException,
     status,
+    WebSocket,
+    WebSocketDisconnect,
 )
 from fastapi.responses import HTMLResponse
-from starlette.websockets import WebSocketState
 from fastapi.staticfiles import StaticFiles
+from starlette.websockets import WebSocketState
+import os
+import uuid
 
 from game_manager import game_manager
 from models import (
@@ -20,23 +26,31 @@ from models import (
     Player,
     DrawingData,
 )
-import uuid  # For generating unique player IDs
-import os  # Import os module to handle paths correctly
 
-app = FastAPI()
+app = FastAPI(
+    title="Pictionary Test API",
+    version="1.0.0",
+)
+
+HOST = os.getenv("HOST", "localhost")
+PORT = int(os.getenv("PORT", 8000))
 
 # Get the directory of the current script (main.py)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Construct the path to the frontend's build directory
-FRONTEND_BUILD_DIR = os.path.join(BASE_DIR, "..", "frontend", "dist")
 
+# Construct the path to the frontend's build directory
+FRONTEND_BUILD_DIR = os.path.join(
+    BASE_DIR, os.getenv("FRONTEND_BUILD_DIR", "../frontend/dist")
+)
+
+FRONTEND_STATIC_DIR = os.getenv("FRONTEND_STATIC_DIR", "assets")
 
 # Mount static files for the frontend (React build)
 # This serves all files inside `frontend/dist/assets` at the `/assets` URL path
 app.mount(
-    "/assets",
-    StaticFiles(directory=os.path.join(FRONTEND_BUILD_DIR, "assets")),
-    name="assets",
+    f"/{FRONTEND_STATIC_DIR}",
+    StaticFiles(directory=os.path.join(FRONTEND_BUILD_DIR, FRONTEND_STATIC_DIR)),
+    name=FRONTEND_STATIC_DIR,
 )
 
 
@@ -56,6 +70,7 @@ async def get_root():
 
 @app.post("/api/create_room", response_model=Room)
 async def create_room(request: CreateRoomRequest):
+    print(">>> Entrou na função create_room do backend! <<<")  # Adicione esta linha
     player_id = str(uuid.uuid4())
     room = await game_manager.create_room(
         host_id=player_id,
@@ -188,85 +203,7 @@ async def start_game(room_id: str):
     return {"message": "Game started"}
 
 
-@app.websocket("/ws/{room_id}/{player_id}/{player_name}")
-async def websocket_endpoint(
-    websocket: WebSocket, room_id: str, player_id: str, player_name: str
-):
-    room = await game_manager.join_room(room_id, player_id, player_name, websocket)
-    if not room:
-        await websocket.close(
-            code=1008, reason="Room not found or game already started"
-        )
-        return
+if __name__ == "__main__":
+    import uvicorn
 
-    try:
-        while True:
-            try:
-                data = await websocket.receive_json()
-                message = WebSocketMessage(**data)
-
-                if message.type == "GUESS":
-                    await game_manager.handle_guess(
-                        room_id, player_id, message.payload["text"]
-                    )
-                elif message.type == "DRAWING_DATA":
-                    drawing_data = DrawingData(**message.payload)
-                    await game_manager.handle_drawing_data(
-                        room_id, player_id, drawing_data
-                    )
-                elif message.type == "CHAT_MESSAGE":
-                    player_name_in_room = (
-                        room.players.get(player_id).name
-                        if room.players.get(player_id)
-                        else "Unknown"
-                    )
-                    await game_manager._broadcast(
-                        room_id,
-                        WebSocketMessage(
-                            type="CHAT_MESSAGE",
-                            payload={
-                                "sender": player_name_in_room,
-                                "message": message.payload["message"],
-                            },
-                        ).dict(),
-                    )
-            except Exception as inner_e:
-                import traceback
-
-                traceback.print_exc()
-                await game_manager.send_chat_message(
-                    room_id,
-                    "System",
-                    f"Server error processing your request: {inner_e}",
-                    False,
-                )
-
-    except WebSocketDisconnect:
-        print(f"Client {player_id} disconnected from room {room_id}")
-        await game_manager.remove_player_connection(room_id, player_id)
-    except Exception as e:
-        print(
-            f"An unexpected error occurred in websocket setup/outer loop for player {player_id} in room {room_id}: {e}"
-        )
-        import traceback
-
-        traceback.print_exc()
-        # Corrected line below:
-        if websocket.client_state == WebSocketState.CONNECTED:
-            try:
-                await websocket.send_json(
-                    {
-                        "type": "ERROR",
-                        "payload": {
-                            "message": "An internal server error occurred during connection setup or management."
-                        },
-                    }
-                )
-            except RuntimeError:
-                pass
-        if (
-            websocket.client_state != WebSocketState.DISCONNECTED
-        ):  # <--- USE WebSocketClientState
-            await websocket.close(
-                code=status.WS_1011_INTERNAL_ERROR, reason="Server error."
-            )
+    uvicorn.run("main:app", host=HOST or "0.0.0.0", port=PORT or 8000, reload=True)

@@ -4,8 +4,8 @@ export interface WebSocketMessage {
   payload: any;
 }
 
-const WEBSOCKET_BASE = process.env.REACT_APP_WS_URL || "ws://localhost:8000/ws";
-
+const WEBSOCKET_BASE = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws";
+console.log('\x1b[44m%s\x1b[0m', 'frontend/src/api/websocket.ts:8 process.env.VITE_WS_URL', import.meta.env.VITE_WS_URL);
 export function connectWebSocket(
   roomId: string,
   playerId: string,
